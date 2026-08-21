@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+  <script>
+    TrelloPowerUp.initialize({
+      'board-buttons': function (t, options) {
+        return [{
+          text: '🖼️ Ver Galeria',
+          callback: function (t) {
+            return t.modal({
+              title: 'Galeria de Fotos do Quadro',
+              url: './gallery.html',
+              height: 600
+            });
+          }
+        }];
+      }
+    });
+  </script>
+</body>
+</html>
