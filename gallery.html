@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <style>
+    body { padding: 15px; font-family: sans-serif; background: #f4f5f7; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+    .card-img { width: 100%; height: 140px; object-fit: cover; border-radius: 5px; border: 1px solid #ccc; }
+    .img-container { background: #fff; padding: 5px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+  </style>
+</head>
+<body>
+  <h2>Galeria de Fotos</h2>
+  <div id="gallery" class="grid">Carregando fotos...</div>
+
+  <script>
+    var t = TrelloPowerUp.iframe();
+
+    t.cards('all')
+      .then(function (cards) {
+        var container = document.getElementById('gallery');
+        container.innerHTML = ''; 
+        var hasImages = false;
+
+        cards.forEach(function (card) {
+          if (card.attachments) {
+            card.attachments.forEach(function (att) {
+              if (att.mimeType && att.mimeType.startsWith('image/')) {
+                hasImages = true;
+                var box = document.createElement('div');
+                box.className = 'img-container';
+                box.innerHTML = '<a href="' + att.url + '" target="_blank"><img class="card-img" src="' + att.url + '" title="' + card.name + '"></a>';
+                container.appendChild(box);
+              }
+            });
+          }
+        });
+
+        if (!hasImages) {
+          container.innerHTML = '<p>Nenhuma foto encontrada nos cartões deste quadro.</p>';
+        }
+      });
+  </script>
+</body>
+</html>
