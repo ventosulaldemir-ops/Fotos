@@ -25,11 +25,10 @@
     .card-item img { width: 100%; height: 160px; object-fit: cover; display: block; cursor: pointer; }
     .card-title { padding: 10px; font-size: 0.85rem; color: #cbd5e1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* Modal de Zoom (Tela Cheia) */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; cursor: pointer; }
     .modal img { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
     
-    #status { margin-top: 15px; color: #94a3b8; text-align: center; }
+    #status { margin-top: 15px; color: #94a3b8; text-align: center; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -46,35 +45,38 @@
   </div>
 
   <div id="gallery" class="grid"></div>
-  <p id="status">Carregando fotos...</p>
+  <p id="status">Iniciando galeria...</p>
 
-  <!-- Janela de imagem ampliada -->
   <div id="imageModal" class="modal" onclick="closeModal()">
     <img id="modalImg" src="">
   </div>
 
   <script>
     var allPhotos = [];
-    var isInsideTrello = false;
-
-    try {
-      var t = TrelloPowerUp.iframe();
-      isInsideTrello = true;
-      
-      t.cards('id', 'name', 'attachments')
-        .then(function (cards) {
-          processCards(cards);
-        })
-        .catch(function(err) {
-          showDirectInput();
-        });
-    } catch(e) {
-      showDirectInput();
-    }
 
     function showDirectInput() {
       document.getElementById('directUrlArea').style.display = 'flex';
-      document.getElementById('status').innerText = 'Para ver fotos fora do Trello, insira o link/ID de um quadro público acima.';
+      document.getElementById('status').innerText = 'Você está acessando fora do Trello. Cole o link de um quadro PÚBLICO acima para carregar as fotos.';
+    }
+
+    // Identifica se está rodando fora do iframe do Trello
+    if (window.self === window.top) {
+      showDirectInput();
+    } else {
+      try {
+        var t = TrelloPowerUp.iframe();
+        t.render(function() {
+          return t.cards('all')
+            .then(function (cards) {
+              processCards(cards);
+            })
+            .catch(function(err) {
+              showDirectInput();
+            });
+        });
+      } catch(e) {
+        showDirectInput();
+      }
     }
 
     function processCards(cards) {
@@ -138,7 +140,6 @@
         .then(res => res.json())
         .then(data => {
           var cards = data.cards || [];
-          // Buscar anexos do JSON público
           allPhotos = [];
           cards.forEach(c => {
             if (c.attachments) {
