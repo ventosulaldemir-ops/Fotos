@@ -1,56 +1,169 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Galeria de Fotos do Trello</title>
   <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css">
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
   <style>
-    body { padding: 15px; font-family: sans-serif; background: #f4f5f7; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
-    .card-img { width: 100%; height: 140px; object-fit: cover; border-radius: 5px; border: 1px solid #ccc; }
-    .img-container { background: #fff; padding: 5px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
+    
+    .header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; background: #1e293b; padding: 15px 20px; border-radius: 12px; }
+    h2 { font-size: 1.4rem; color: #38bdf8; }
+    
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; width: 100%; max-width: 600px; }
+    input[type="text"] { flex: 1; min-width: 200px; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; outline: none; }
+    input[type="text"]:focus { border-color: #38bdf8; }
+    button { padding: 8px 16px; border-radius: 6px; border: none; background: #0284c7; color: white; cursor: pointer; font-weight: bold; transition: 0.2s; }
+    button:hover { background: #0369a1; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+    .card-item { background: #1e293b; border-radius: 10px; overflow: hidden; border: 1px solid #334155; transition: transform 0.2s, box-shadow 0.2s; }
+    .card-item:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+    .card-item img { width: 100%; height: 160px; object-fit: cover; display: block; cursor: pointer; }
+    .card-title { padding: 10px; font-size: 0.85rem; color: #cbd5e1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Modal de Zoom (Tela Cheia) */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; cursor: pointer; }
+    .modal img { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+    
+    #status { margin-top: 15px; color: #94a3b8; text-align: center; }
   </style>
 </head>
 <body>
-  <h2>Galeria de Fotos</h2>
-  <div id="gallery" class="grid">Carregando fotos...</div>
+
+  <div class="header">
+    <h2>🖼️ Galeria de Fotos</h2>
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="🔍 Pesquisar foto por nome..." oninput="filterPhotos()">
+      <div id="directUrlArea" style="display:none; gap: 5px; width: 100%; margin-top: 5px;">
+        <input type="text" id="boardUrlInput" placeholder="Cole o link ou ID do quadro público do Trello...">
+        <button onclick="loadFromPublicUrl()">Carregar Quadro</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gallery" class="grid"></div>
+  <p id="status">Carregando fotos...</p>
+
+  <!-- Janela de imagem ampliada -->
+  <div id="imageModal" class="modal" onclick="closeModal()">
+    <img id="modalImg" src="">
+  </div>
 
   <script>
-    var t = TrelloPowerUp.iframe();
+    var allPhotos = [];
+    var isInsideTrello = false;
 
-    // Solicitamos explicitamente o campo 'attachments'
-    t.cards('id', 'name', 'attachments')
-      .then(function (cards) {
-        var container = document.getElementById('gallery');
-        container.innerHTML = ''; 
-        var hasImages = false;
-
-        cards.forEach(function (card) {
-          if (card.attachments && card.attachments.length > 0) {
-            card.attachments.forEach(function (att) {
-              // Verifica o tipo ou a extensão da imagem
-              var isImage = (att.mimeType && att.mimeType.startsWith('image/')) || 
-                            (att.url && att.url.match(/\.(jpeg|jpg|gif|png|webp)/i));
-              
-              if (isImage) {
-                hasImages = true;
-                var box = document.createElement('div');
-                box.className = 'img-container';
-                box.innerHTML = '<a href="' + att.url + '" target="_blank"><img class="card-img" src="' + att.url + '" title="' + card.name + '"></a>';
-                container.appendChild(box);
-              }
-            });
-          }
+    try {
+      var t = TrelloPowerUp.iframe();
+      isInsideTrello = true;
+      
+      t.cards('id', 'name', 'attachments')
+        .then(function (cards) {
+          processCards(cards);
+        })
+        .catch(function(err) {
+          showDirectInput();
         });
+    } catch(e) {
+      showDirectInput();
+    }
 
-        if (!hasImages) {
-          container.innerHTML = '<p>Nenhuma foto encontrada nos cartões deste quadro.</p>';
+    function showDirectInput() {
+      document.getElementById('directUrlArea').style.display = 'flex';
+      document.getElementById('status').innerText = 'Para ver fotos fora do Trello, insira o link/ID de um quadro público acima.';
+    }
+
+    function processCards(cards) {
+      allPhotos = [];
+      cards.forEach(function (card) {
+        if (card.attachments && card.attachments.length > 0) {
+          card.attachments.forEach(function (att) {
+            var isImage = (att.mimeType && att.mimeType.startsWith('image/')) || 
+                          (att.url && att.url.match(/\.(jpeg|jpg|gif|png|webp)/i));
+            if (isImage) {
+              allPhotos.push({ name: card.name, url: att.url });
+            }
+          });
         }
-      })
-      .catch(function(err) {
-        console.error(err);
-        document.getElementById('gallery').innerHTML = '<p>Erro ao carregar fotos.</p>';
       });
+      renderGallery(allPhotos);
+    }
+
+    function renderGallery(photos) {
+      var container = document.getElementById('gallery');
+      var status = document.getElementById('status');
+      container.innerHTML = '';
+
+      if (photos.length === 0) {
+        status.innerText = 'Nenhuma foto encontrada.';
+        return;
+      }
+
+      status.innerText = '';
+      photos.forEach(function (photo) {
+        var card = document.createElement('div');
+        card.className = 'card-item';
+        card.innerHTML = `
+          <img src="${photo.url}" alt="${photo.name}" onclick="openModal('${photo.url}')">
+          <div class="card-title" title="${photo.name}">${photo.name}</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterPhotos() {
+      var query = document.getElementById('searchInput').value.toLowerCase();
+      var filtered = allPhotos.filter(function(photo) {
+        return photo.name.toLowerCase().includes(query);
+      });
+      renderGallery(filtered);
+    }
+
+    function loadFromPublicUrl() {
+      var input = document.getElementById('boardUrlInput').value.trim();
+      if (!input) return;
+
+      var boardId = input;
+      if (input.includes('trello.com/b/')) {
+        boardId = input.split('trello.com/b/')[1].split('/')[0];
+      }
+
+      document.getElementById('status').innerText = 'Buscando fotos do quadro público...';
+      
+      fetch(`https://trello.com/b/${boardId}.json`)
+        .then(res => res.json())
+        .then(data => {
+          var cards = data.cards || [];
+          // Buscar anexos do JSON público
+          allPhotos = [];
+          cards.forEach(c => {
+            if (c.attachments) {
+              c.attachments.forEach(att => {
+                if (att.bytes || (att.url && att.url.match(/\.(jpeg|jpg|gif|png|webp)/i))) {
+                  allPhotos.push({ name: c.name, url: att.url });
+                }
+              });
+            }
+          });
+          renderGallery(allPhotos);
+        })
+        .catch(err => {
+          document.getElementById('status').innerText = 'Erro ao carregar quadro. Verifique se o quadro é PÚBLICO.';
+        });
+    }
+
+    function openModal(url) {
+      document.getElementById('modalImg').src = url;
+      document.getElementById('imageModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('imageModal').style.display = 'none';
+    }
   </script>
 </body>
 </html>
