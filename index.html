@@ -1,25 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
+  <title>Power-Up Galeria</title>
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
 </head>
 <body>
   <script>
-    TrelloPowerUp.initialize({
-      'board-buttons': function (t, options) {
-        return [{
-          text: '🖼️ Ver Galeria',
-          callback: function (t) {
-            return t.modal({
-              title: 'Galeria de Fotos do Quadro',
-              url: './gallery.html',
-              height: 600
-            });
-          }
-        }];
-      }
-    });
+    if (window.self !== window.top) {
+      TrelloPowerUp.initialize({
+        'board-buttons': function(t, options) {
+          return [{
+            icon: 'https://cdn-icons-png.flaticon.com/512/1375/1375106.png',
+            text: '🖼️ Ver Galeria',
+            callback: function(t) {
+              return t.modal({
+                title: 'Galeria de Fotos',
+                url: './gallery.html',
+                height: 600
+              });
+            }
+          }];
+        }
+      });
+    } else {
+      window.location.href = './gallery.html';
+    }
   </script>
 </body>
 </html>
