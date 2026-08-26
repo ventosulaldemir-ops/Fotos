@@ -1,0 +1,9 @@
+{
+  "name": "Galeria de Fotos do Trello",
+  "capabilities": [
+    "board-buttons"
+  ],
+  "icon": {
+    "url": "https://cdn.jsdelivr.net/npm/@mdi/svg@7.2.96/svg/image.svg"
+  }
+}
