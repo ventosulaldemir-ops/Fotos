@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Galeria de Fotos do Trello</title>
+  <title>Galeria de Fotos</title>
   <link rel="stylesheet" href="https://p.trellocdn.com/power-up.css">
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; }
-
+    
     .header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; background: #1e293b; padding: 15px 20px; border-radius: 12px; }
     h2 { font-size: 1.4rem; color: #38bdf8; }
-
-    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; width: 100%; max-width: 700px; }
+    
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; width: 100%; max-width: 650px; }
     input[type="text"] { flex: 1; min-width: 200px; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #fff; outline: none; }
     input[type="text"]:focus { border-color: #38bdf8; }
     button { padding: 8px 16px; border-radius: 6px; border: none; background: #0284c7; color: white; cursor: pointer; font-weight: bold; transition: 0.2s; }
@@ -22,15 +22,13 @@
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
     .card-item { background: #1e293b; border-radius: 10px; overflow: hidden; border: 1px solid #334155; transition: transform 0.2s, box-shadow 0.2s; }
     .card-item:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-    .card-item img { width: 100%; height: 160px; object-fit: cover; display: block; cursor: pointer; background: #0f172a; }
+    .card-item img { width: 100%; height: 160px; object-fit: cover; display: block; cursor: pointer; }
     .card-title { padding: 10px; font-size: 0.85rem; color: #cbd5e1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; cursor: pointer; }
     .modal img { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
-
+    
     #status { margin-top: 15px; color: #94a3b8; text-align: center; font-weight: bold; }
-    .hint { font-size: 0.75rem; color: #64748b; width: 100%; margin-top: 4px; }
-    .hint a { color: #38bdf8; }
   </style>
 </head>
 <body>
@@ -39,17 +37,15 @@
     <h2>🖼️ Galeria de Fotos</h2>
     <div class="controls">
       <input type="text" id="searchInput" placeholder="🔍 Pesquisar foto por nome..." oninput="filterPhotos()">
-      <div id="directUrlArea" style="display:none; gap: 5px; width: 100%; margin-top: 5px; flex-wrap: wrap;">
-        <input type="text" id="boardUrlInput" placeholder="Cole o link do quadro público do Trello...">
-        <input type="text" id="apiKeyInput" placeholder="Cole sua API Key do Trello...">
-        <button onclick="loadFromPublicUrl()">Carregar Quadro</button>
-        <span class="hint">Pegue sua chave gratuita em <a href="https://trello.com/power-ups/admin" target="_blank">trello.com/power-ups/admin</a> (criar um Power-Up) ou em <a href="https://trello.com/app-key" target="_blank">trello.com/app-key</a>. O quadro precisa estar como "Público" nas configurações de visibilidade.</span>
+      <div id="directUrlArea" style="display:none; gap: 5px; width: 100%; margin-top: 5px;">
+        <input type="text" id="boardUrlInput" placeholder="Cole a URL ou ID do seu quadro público do Trello...">
+        <button onclick="loadFromPublicUrl()">Carregar Fotos</button>
       </div>
     </div>
   </div>
 
   <div id="gallery" class="grid"></div>
-  <p id="status">Iniciando galeria...</p>
+  <p id="status">Carregando fotos...</p>
 
   <div id="imageModal" class="modal" onclick="closeModal()">
     <img id="modalImg" src="">
@@ -57,30 +53,39 @@
 
   <script>
     var allPhotos = [];
+    var loaded = false;
 
     function showDirectInput() {
+      if (loaded) return;
       document.getElementById('directUrlArea').style.display = 'flex';
-      document.getElementById('status').innerText = 'Você está acessando fora do Trello. Cole o link do quadro e sua API Key acima para carregar as fotos.';
+      document.getElementById('status').innerText = 'Fora do Trello: Cole o link do seu quadro PÚBLICO acima para carregar as fotos.';
     }
 
-    // Identifica se está rodando fora do iframe do Trello
-    if (window.self === window.top) {
-      showDirectInput();
-    } else {
-      try {
+    // Se o Trello não responder em 2 segundos, destrava a tela
+    var timeout = setTimeout(function() {
+      if (!loaded) showDirectInput();
+    }, 2000);
+
+    try {
+      if (window.self !== window.top) {
         var t = TrelloPowerUp.iframe();
-        t.render(function() {
-          return t.cards('all')
-            .then(function (cards) {
-              processCards(cards);
-            })
-            .catch(function(err) {
-              showDirectInput();
-            });
-        });
-      } catch(e) {
+        t.cards('id', 'name', 'attachments')
+          .then(function (cards) {
+            clearTimeout(timeout);
+            loaded = true;
+            processCards(cards);
+          })
+          .catch(function(err) {
+            clearTimeout(timeout);
+            showDirectInput();
+          });
+      } else {
+        clearTimeout(timeout);
         showDirectInput();
       }
+    } catch(e) {
+      clearTimeout(timeout);
+      showDirectInput();
     }
 
     function processCards(cards) {
@@ -88,7 +93,7 @@
       cards.forEach(function (card) {
         if (card.attachments && card.attachments.length > 0) {
           card.attachments.forEach(function (att) {
-            var isImage = (att.mimeType && att.mimeType.startsWith('image/')) ||
+            var isImage = (att.mimeType && att.mimeType.startsWith('image/')) || 
                           (att.url && att.url.match(/\.(jpeg|jpg|gif|png|webp)/i));
             if (isImage) {
               allPhotos.push({ name: card.name, url: att.url });
@@ -109,12 +114,12 @@
         return;
       }
 
-      status.innerText = photos.length + ' foto(s) encontrada(s).';
+      status.innerText = '';
       photos.forEach(function (photo) {
         var card = document.createElement('div');
         card.className = 'card-item';
         card.innerHTML = `
-          <img src="${photo.url}" alt="${photo.name}" onclick="openModal('${photo.url}')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{innerText:'⚠️ imagem indisponível (precisa de login no Trello)',style:'padding:20px;font-size:0.75rem;color:#f87171;text-align:center;height:160px;display:flex;align-items:center;justify-content:center;'}))">
+          <img src="${photo.url}" alt="${photo.name}" onclick="openModal('${photo.url}')">
           <div class="card-title" title="${photo.name}">${photo.name}</div>
         `;
         container.appendChild(card);
@@ -129,47 +134,29 @@
       renderGallery(filtered);
     }
 
-    function extractBoardId(input) {
-      input = input.trim();
-      if (input.includes('trello.com/b/')) {
-        return input.split('trello.com/b/')[1].split('/')[0];
-      }
-      return input; // já é um ID puro
-    }
-
     function loadFromPublicUrl() {
-      var boardInput = document.getElementById('boardUrlInput').value.trim();
-      var apiKey = document.getElementById('apiKeyInput').value.trim();
+      var input = document.getElementById('boardUrlInput').value.trim();
+      if (!input) return;
 
-      if (!boardInput) return;
-      if (!apiKey) {
-        document.getElementById('status').innerText = 'Informe sua API Key do Trello (veja o link de ajuda acima).';
-        return;
+      var boardId = input;
+      if (input.includes('trello.com/b/')) {
+        boardId = input.split('trello.com/b/')[1].split('/')[0];
       }
 
-      var boardId = extractBoardId(boardInput);
-      document.getElementById('status').innerText = 'Buscando fotos do quadro...';
-
-      // Usa a API oficial (api.trello.com), que responde com CORS liberado.
-      // O endpoint trello.com/b/{id}.json NÃO permite fetch de outros domínios (bloqueio CORS).
-      var url = 'https://api.trello.com/1/boards/' + boardId +
-                '/cards?attachments=true&fields=name&attachment_fields=url,name,mimeType&key=' + encodeURIComponent(apiKey);
-
-      fetch(url)
-        .then(function(res) {
-          if (!res.ok) {
-            throw new Error('HTTP ' + res.status);
-          }
-          return res.json();
-        })
-        .then(function(cards) {
+      document.getElementById('status').innerText = 'Buscando fotos do Trello...';
+      
+      fetch(`https://trello.com/b/${boardId}.json`)
+        .then(res => res.json())
+        .then(data => {
+          var cards = data.cards || [];
           allPhotos = [];
-          cards.forEach(function(c) {
+          cards.forEach(c => {
             if (c.attachments) {
-              c.attachments.forEach(function(att) {
-                var isImage = (att.mimeType && att.mimeType.startsWith('image/')) ||
-                              (att.url && att.url.match(/\.(jpeg|jpg|gif|png|webp)/i));
-                if (isImage) {
+              c.attachments.forEach(att => {
+                var isImg = (att.mimeType && att.mimeType.startsWith('image/')) ||
+                            (att.url && att.url.match(/\.(jpeg|jpg|gif|png|webp)/i)) ||
+                            att.bytes;
+                if (isImg) {
                   allPhotos.push({ name: c.name, url: att.url });
                 }
               });
@@ -177,9 +164,8 @@
           });
           renderGallery(allPhotos);
         })
-        .catch(function(err) {
-          document.getElementById('status').innerText =
-            'Erro ao carregar quadro (' + err.message + '). Verifique se o quadro está PÚBLICO e se a API Key está correta.';
+        .catch(err => {
+          document.getElementById('status').innerText = 'Erro ao carregar quadro. Verifique se o quadro é PÚBLICO no Trello.';
         });
     }
 
