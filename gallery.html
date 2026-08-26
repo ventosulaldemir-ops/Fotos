@@ -18,16 +18,21 @@
   <script>
     var t = TrelloPowerUp.iframe();
 
-    t.cards('all')
+    // Solicitamos explicitamente o campo 'attachments'
+    t.cards('id', 'name', 'attachments')
       .then(function (cards) {
         var container = document.getElementById('gallery');
         container.innerHTML = ''; 
         var hasImages = false;
 
         cards.forEach(function (card) {
-          if (card.attachments) {
+          if (card.attachments && card.attachments.length > 0) {
             card.attachments.forEach(function (att) {
-              if (att.mimeType && att.mimeType.startsWith('image/')) {
+              // Verifica o tipo ou a extensão da imagem
+              var isImage = (att.mimeType && att.mimeType.startsWith('image/')) || 
+                            (att.url && att.url.match(/\.(jpeg|jpg|gif|png|webp)/i));
+              
+              if (isImage) {
                 hasImages = true;
                 var box = document.createElement('div');
                 box.className = 'img-container';
@@ -41,6 +46,10 @@
         if (!hasImages) {
           container.innerHTML = '<p>Nenhuma foto encontrada nos cartões deste quadro.</p>';
         }
+      })
+      .catch(function(err) {
+        console.error(err);
+        document.getElementById('gallery').innerHTML = '<p>Erro ao carregar fotos.</p>';
       });
   </script>
 </body>
